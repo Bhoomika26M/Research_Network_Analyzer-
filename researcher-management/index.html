@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SciCollab | Researcher Management</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Full Application Shell -->
+  <div class="app-shell">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand-badge">SC</div>
+        <div>
+          <div class="sidebar-brand-title">SciCollab</div>
+          <div class="sidebar-brand-sub">Research Platform</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-item">
+          <span>📊</span> Dashboard
+        </div>
+        <div class="sidebar-nav-item active">
+          <span>👥</span> Researchers
+        </div>
+        <div class="sidebar-nav-item">
+          <span>📄</span> Publications
+        </div>
+        <div class="sidebar-nav-item">
+          <span>🤝</span> Collaborations
+        </div>
+        <div class="sidebar-nav-item">
+          <span>🌐</span> Conferences
+        </div>
+        <div class="sidebar-nav-item">
+          <span>💬</span> Citations
+        </div>
+        <div class="sidebar-nav-item">
+          <span>📈</span> Reports
+        </div>
+        <div class="sidebar-nav-item">
+          <span>🔒</span> Audit Logs
+        </div>
+        <div class="sidebar-nav-item">
+          <span>⚙️</span> Settings
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 6px; font-weight: 500;">ACTIVE ROLE</div>
+        <select class="role-selector">
+          <option>Researcher</option>
+          <option>Administrator</option>
+          <option>Guest Viewer</option>
+        </select>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper Area -->
+    <div class="main-wrapper">
+      
+      <!-- TopBar Header -->
+      <header class="topbar">
+        <div class="topbar-title">Researchers</div>
+
+        <div class="topbar-right">
+          <button class="theme-btn" id="themeBtn">🌙 Dark</button>
+          <button class="icon-btn" title="Notifications">
+            🔔
+          </button>
+          <div class="user-profile-badge">
+            <div class="avatar-circle">SC</div>
+            <div style="font-size: 13px; font-weight: 600; color: #1B1F27;">Dr. Sarah Chen</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Dynamic Screen Area -->
+      <main class="page-content" id="screenMountPoint">
+        <!-- Injected via app.js -->
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Dynamic Modal Mount Point -->
+  <div id="modalMountPoint"></div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
