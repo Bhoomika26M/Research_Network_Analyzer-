@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.cache/
+.env
+.env.local
+.env.*.local
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
