@@ -1,0 +1,9 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+# B008: FastAPI Depends() must be callable in argument defaults
+ignore = ["B008"]
