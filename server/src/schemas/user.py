@@ -45,6 +45,7 @@ class UserUpdate(BaseModel):
     interests: Optional[List[str]] = None
     h_index: Optional[int] = None
     citations_total: Optional[int] = None
+    is_active: Optional[str] = None
 
 
 class UserResponse(UserBase):

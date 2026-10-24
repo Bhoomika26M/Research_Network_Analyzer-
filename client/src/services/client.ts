@@ -28,6 +28,11 @@ apiClient.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('scicollab_token')
       localStorage.removeItem('scicollab_user')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('scicollab_session_expired', {
+          detail: error.response.data?.detail || 'Session expired or invalidated'
+        }))
+      }
     }
     return Promise.reject(error)
   }

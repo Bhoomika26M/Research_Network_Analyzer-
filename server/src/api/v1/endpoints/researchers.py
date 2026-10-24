@@ -143,6 +143,7 @@ async def delete_researcher(
     # Soft delete: keep the row for the audit trail and history.
     user.is_deleted = True
     user.deleted_at = datetime.utcnow()
+    user.is_active = "Inactive"
     await record_audit(
         db,
         actor=current_user.name,
