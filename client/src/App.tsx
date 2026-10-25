@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { authApi } from './services/auth'
-import { ToastProvider } from './context/ToastContext'
+import { securityApi } from './services/security'
+import { ToastProvider, useToast } from './context/ToastContext'
 import { NotificationsProvider } from './context/NotificationsContext'
 import { NavigationContext } from './context/NavigationContext'
 import { ToastContainer } from './components/Toast'
@@ -68,6 +69,73 @@ function AppInner() {
   // True while we validate a stored session against /auth/me on load.
   const [restoring, setRestoring] = useState(() => !!localStorage.getItem('scicollab_token'))
 
+  const { showToast } = useToast()
+
+  const handleLogout = (reason?: string) => {
+    localStorage.removeItem('scicollab_token')
+    localStorage.removeItem('scicollab_user')
+    localStorage.removeItem('scicollab_login_time')
+    setRole(null)
+    setLoggedInUser(null)
+    setAuthScreen('login')
+    setActivePage('dashboard')
+    if (reason) {
+      showToast(reason, 'error')
+    }
+  }
+
+  // ── Cross-tab Force Logout & Session Expiration Listeners ───────
+  useEffect(() => {
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('scicollab_auth') : null
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'scicollab_force_logout' && role) {
+        handleLogout('Your session was terminated by an administrator.')
+      }
+    }
+
+    const handleBroadcast = (e: MessageEvent) => {
+      if (e.data?.type === 'FORCE_LOGOUT' && role) {
+        handleLogout('Your session was terminated by an administrator.')
+      }
+    }
+
+    const handleSessionExpired = (e: any) => {
+      if (role) {
+        handleLogout(e.detail || 'Session expired or invalidated. Please log in again.')
+      }
+    }
+
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('scicollab_session_expired', handleSessionExpired)
+    if (channel) {
+      channel.addEventListener('message', handleBroadcast)
+    }
+
+    // Periodic check for backend force logout (every 3 seconds)
+    const timer = setInterval(() => {
+      if (role && role !== 'admin') {
+        securityApi.getPolicy()
+          .then(policy => {
+            if (policy.forceLogoutAt) {
+              const loginTime = Number(localStorage.getItem('scicollab_login_time') || 0)
+              if (loginTime && loginTime < policy.forceLogoutAt) {
+                handleLogout('Your session was terminated by an administrator.')
+              }
+            }
+          })
+          .catch(() => {})
+      }
+    }, 3000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('scicollab_session_expired', handleSessionExpired)
+      if (channel) channel.close()
+      clearInterval(timer)
+    }
+  }, [role])
+
   // ── Session restore ────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem('scicollab_token')
@@ -89,6 +157,9 @@ function AppInner() {
           localStorage.removeItem('scicollab_user')
           setRestoring(false)
           return
+        }
+        if (!localStorage.getItem('scicollab_login_time')) {
+          localStorage.setItem('scicollab_login_time', Date.now().toString())
         }
         localStorage.setItem('scicollab_user', JSON.stringify(user))
         setRole(user.role)
@@ -121,6 +192,7 @@ function AppInner() {
           <ToastContainer />
           <Login
             onLoginSuccess={(selectedRole, user) => {
+              localStorage.setItem('scicollab_login_time', Date.now().toString())
               setRole(selectedRole)
               setLoggedInUser(user)
               setActivePage('dashboard')
@@ -135,6 +207,7 @@ function AppInner() {
         <ToastContainer />
         <Register
           onRegisterSuccess={(selectedRole, user) => {
+            localStorage.setItem('scicollab_login_time', Date.now().toString())
             setRole(selectedRole)
             setLoggedInUser(user)
             setActivePage('dashboard')
@@ -197,7 +270,17 @@ function AppInner() {
           }}
         />
       )
-      case 'profile-settings': return <AccountSettings />
+      case 'profile-settings':
+        return (
+          <AccountSettings
+            user={loggedInUser ?? undefined}
+            onLogout={handleLogout}
+            onUserUpdated={(updated) => {
+              localStorage.setItem('scicollab_user', JSON.stringify(updated))
+              setLoggedInUser(updated)
+            }}
+          />
+        )
       case 'profile-notifications': return <Notifications />
       case 'profile-help':   return <HelpSupport />
       default:               return <ResearcherDashboard />
@@ -214,14 +297,7 @@ function AppInner() {
         userName={displayName}
         userEmail={loggedInUser?.email}
         user={loggedInUser ?? undefined}
-        onLogout={() => {
-          localStorage.removeItem('scicollab_token')
-          localStorage.removeItem('scicollab_user')
-          setRole(null)
-          setLoggedInUser(null)
-          setAuthScreen('login')
-          setActivePage('dashboard')
-        }}
+        onLogout={handleLogout}
       >
         {renderPage()}
       </Shell>

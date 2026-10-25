@@ -1,0 +1,11 @@
+{
+  "sessionTimeout": "1 hr",
+  "minPasswordLen": 10,
+  "requireSpecialChar": true,
+  "requireUppercase": true,
+  "ipAllowlist": false,
+  "ipRanges": [
+    "192.168.1.0/24"
+  ],
+  "forceLogoutAt": 1792814312524
+}

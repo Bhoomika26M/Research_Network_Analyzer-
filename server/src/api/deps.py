@@ -67,6 +67,20 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Check if force logout was triggered after this token was issued
+    from src.core.security_settings import get_force_logout_at
+    force_logout_at = get_force_logout_at()
+    if force_logout_at:
+        iat = payload.get("iat")
+        user_role = (user.role or "").strip().lower()
+        is_admin = "admin" in user_role and "inst" not in user_role
+        if not is_admin and (iat is None or (iat * 1000) < force_logout_at):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session was terminated by an administrator. Please log in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     return user
 
 

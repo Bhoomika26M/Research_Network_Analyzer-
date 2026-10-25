@@ -13,11 +13,13 @@ from src.api.v1.endpoints import (
     tasks,
     assignments,
     links,
+    security,
 )
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(security.router, prefix="/security", tags=["Security"])
 api_router.include_router(researchers.router, prefix="/researchers", tags=["Researchers"])
 api_router.include_router(publications.router, prefix="/publications", tags=["Publications"])
 api_router.include_router(projects.router, prefix="/projects", tags=["Projects"])
