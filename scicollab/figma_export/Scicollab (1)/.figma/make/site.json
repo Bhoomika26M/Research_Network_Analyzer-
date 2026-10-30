@@ -1,0 +1,10 @@
+{
+  "description": "This web application streamlines app design by allowing users to customize and enhance existing designs, making it ideal for developers and designers seeking efficiency.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
