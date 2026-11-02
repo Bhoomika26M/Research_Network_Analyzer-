@@ -14,6 +14,7 @@ from src.api.v1.endpoints import (
     assignments,
     links,
     security,
+    reviews,
 )
 
 api_router = APIRouter()
@@ -32,3 +33,4 @@ api_router.include_router(teams.router, prefix="/teams", tags=["Teams"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
 api_router.include_router(assignments.router, prefix="/assignments", tags=["Assignments"])
 api_router.include_router(links.router, prefix="/links", tags=["Links"])
+api_router.include_router(reviews.router, prefix="/reviews", tags=["Reviews"])

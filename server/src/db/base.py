@@ -10,3 +10,4 @@ from src.models.team import Team  # noqa
 from src.models.task import ProjectTask  # noqa
 from src.models.assignment import Assignment  # noqa
 from src.models.link import PublicationLink  # noqa
+from src.models.review import Review  # noqa

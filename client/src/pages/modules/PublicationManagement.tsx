@@ -25,7 +25,19 @@ const statusStyles: Record<string, string> = {
   Rejected: 'bg-red-50 text-red-700',
 }
 
-function PubDrawerContent({ pub, onCopyDOI, onDownloadPDF }: { pub: Publication; onCopyDOI: () => void; onDownloadPDF: () => void }) {
+function PubDrawerContent({
+  pub,
+  onCopyDOI,
+  onDownloadPDF,
+  onSubmitForReview,
+  canSubmitForReview,
+}: {
+  pub: Publication
+  onCopyDOI: () => void
+  onDownloadPDF: () => void
+  onSubmitForReview?: () => void
+  canSubmitForReview?: boolean
+}) {
   return (
     <div className="space-y-5">
       {/* Badges */}
@@ -81,13 +93,34 @@ function PubDrawerContent({ pub, onCopyDOI, onDownloadPDF }: { pub: Publication;
         </div>
       )}
 
+      {/* Workflow status highlight */}
+      {pub.status === 'Under Review' && (
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200">
+          <div className="flex items-center gap-2 text-amber-800 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            Under Peer Review
+          </div>
+          <p className="text-[11px] text-amber-700 mt-1">
+            This submission is currently assigned to the reviewer queue awaiting peer evaluation and decision.
+          </p>
+        </div>
+      )}
+
       {/* Action buttons */}
-      <div className="flex gap-3 pt-4 border-t border-[#F1F5F9]">
+      <div className="flex flex-col gap-2.5 pt-4 border-t border-[#F1F5F9]">
+        {canSubmitForReview && (pub.status === 'Draft' || pub.status === 'Rejected') && onSubmitForReview && (
+          <button
+            onClick={onSubmitForReview}
+            className="w-full py-2.5 rounded-xl gradient-bg text-white text-sm font-semibold hover:brightness-110 shadow-sm transition-all cursor-pointer"
+          >
+            Submit for Peer Review →
+          </button>
+        )}
         <button
           onClick={onDownloadPDF}
-          className="flex-1 py-2.5 rounded-xl gradient-bg text-white text-sm font-semibold hover:brightness-110 transition-all"
+          className="w-full py-2.5 rounded-xl border border-[#E2E8F0] text-[#0F172A] text-sm font-medium hover:bg-[#F1F5F9] transition-all cursor-pointer"
         >
-          Download PDF (Demo)
+          Download PDF
         </button>
       </div>
     </div>
@@ -172,7 +205,6 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
       return
     }
     
-    // Payload sent to backend database (no manual client-side ID)
     const payload = {
       title: newPub.title,
       authors: newPub.authors.length ? newPub.authors : ['Unknown Author'],
@@ -187,7 +219,11 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
 
     createPubMutation.mutate(payload, {
       onSuccess: (savedPub) => {
-        showToast(`Publication "${savedPub.title.slice(0, 35)}..." saved to database!`, 'success')
+        if (savedPub.status === 'Under Review') {
+          showToast(`Publication created and submitted for peer review!`, 'success')
+        } else {
+          showToast(`Publication "${savedPub.title.slice(0, 35)}..." saved to database!`, 'success')
+        }
         setModalOpen(false)
         setNewPub({ title: '', authors: [], journal: '', year: String(new Date().getFullYear()), type: 'Journal', status: 'Draft', doi: '', abstract: '' })
       },
@@ -195,6 +231,26 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
         showToast(err.response?.data?.detail || 'Failed to save publication to database', 'error')
       }
     })
+  }
+
+  const handleSubmitForReview = (pub: Publication) => {
+    updatePubMutation.mutate(
+      {
+        id: pub.id,
+        data: { status: 'Under Review' },
+      },
+      {
+        onSuccess: (saved) => {
+          showToast(`"${saved.title.slice(0, 35)}..." submitted for peer review!`, 'success')
+          if (selectedPub?.id === pub.id) {
+            setSelectedPub(saved)
+          }
+        },
+        onError: (err: any) => {
+          showToast(err.response?.data?.detail || 'Failed to submit publication for review', 'error')
+        },
+      }
+    )
   }
 
   const openEdit = (pub: Publication) => {
@@ -233,8 +289,15 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
       },
       {
         onSuccess: (saved) => {
-          showToast(`Publication "${saved.title.slice(0, 35)}..." updated`, 'success')
+          if (saved.status === 'Under Review' && editingPub.status !== 'Under Review') {
+            showToast(`Publication submitted for peer review!`, 'success')
+          } else {
+            showToast(`Publication "${saved.title.slice(0, 35)}..." updated`, 'success')
+          }
           setEditingPub(null)
+          if (selectedPub?.id === saved.id) {
+            setSelectedPub(saved)
+          }
         },
         onError: (err: any) => {
           showToast(err.response?.data?.detail || 'Failed to update publication', 'error')
@@ -256,6 +319,10 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
     })
   }
 
+  const canEdit = hasPermission(user, 'publications.approve') || hasPermission(user, 'publications.create')
+  const canCreate = hasPermission(user, 'publications.create')
+  const canArchive = hasPermission(user, 'publications.archive')
+
   return (
     <div className="p-8 max-w-[1200px]">
       <div className="mb-8">
@@ -266,9 +333,9 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
         <div className="flex items-end justify-between">
           <div>
             <h1 className="font-display text-3xl text-[#0F172A]">Publications</h1>
-            <p className="text-[#64748B] mt-1">Manage your research output directly from PostgreSQL database</p>
+            <p className="text-[#64748B] mt-1">Manage and track your research outputs through the peer review workflow</p>
           </div>
-          {hasPermission(user, 'publications.create') && (
+          {canCreate && (
             <button
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl gradient-bg text-white text-sm font-semibold hover:brightness-110 hover:shadow-md transition-all cursor-pointer"
@@ -326,6 +393,11 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
                 }`}
               >
                 <span className="capitalize">{s === 'all' ? 'All Statuses' : s}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activeStatus === s ? 'gradient-bg text-white' : 'bg-[#F1F5F9] text-[#64748B]'
+                }`}>
+                  {s === 'all' ? activePubs.length : activePubs.filter(p => p && p.status === s).length}
+                </span>
               </button>
             ))}
           </div>
@@ -339,7 +411,7 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
             </div>
           )}
           {!isLoading && filtered.length === 0 && (
-            <EmptyState icon="📚" title="No publications found" subtitle="Try adjusting your filters or click 'New Publication' to save one into PostgreSQL database." />
+            <EmptyState icon="📚" title="No publications found" subtitle="Try adjusting your filters or click 'New Publication' to add one." />
           )}
           {!isLoading && filtered.map((pub) => (
             <div
@@ -372,9 +444,17 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
                       <p className="text-xs text-[#64748B]">citations</p>
                     </div>
                   )}
-                  {(hasPermission(user, 'publications.approve') || hasPermission(user, 'publications.archive')) && (
-                    <div className="flex gap-2 mt-3 justify-end">
-                      {hasPermission(user, 'publications.approve') && (
+                  {(canEdit || canArchive) && (
+                    <div className="flex gap-2 mt-3 justify-end items-center flex-wrap">
+                      {(pub.status === 'Draft' || pub.status === 'Rejected') && canCreate && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleSubmitForReview(pub) }}
+                          className="px-3 py-1.5 rounded-lg gradient-bg text-white text-xs font-semibold hover:brightness-110 shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          Submit for Review
+                        </button>
+                      )}
+                      {canEdit && (
                         <button
                           onClick={(e) => { e.stopPropagation(); openEdit(pub) }}
                           className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-xs font-medium text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0052FF] transition-all cursor-pointer"
@@ -382,7 +462,7 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
                           Edit
                         </button>
                       )}
-                      {hasPermission(user, 'publications.archive') && (
+                      {canArchive && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeletePub(pub) }}
                           className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 transition-all cursor-pointer"
@@ -409,6 +489,8 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
             pub={selectedPub}
             onCopyDOI={() => handleCopyDOI(selectedPub)}
             onDownloadPDF={() => handleDownloadPDF(selectedPub)}
+            onSubmitForReview={() => handleSubmitForReview(selectedPub)}
+            canSubmitForReview={canCreate}
           />
         )}
       </Drawer>
@@ -419,7 +501,7 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
         title="New Publication"
         label="Publication Mgmt"
         onSubmit={handleAddPub}
-        submitLabel={createPubMutation.isPending ? "Saving to Database..." : "Add Publication"}
+        submitLabel={createPubMutation.isPending ? "Saving..." : (newPub.status === 'Under Review' ? "Submit for Peer Review" : "Save Publication")}
       >
         <div>
           <label className="block text-xs font-medium text-[#64748B] mb-1.5">Title <span className="text-red-500">*</span></label>
@@ -479,9 +561,10 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
               value={newPub.status}
               onChange={(e) => setNewPub({ ...newPub, status: e.target.value })}
             >
-              {['Draft', 'Under Review', 'Published', 'Rejected'].map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <option value="Draft">Draft (Save locally)</option>
+              <option value="Under Review">Under Review (Submit to Peer Reviewers)</option>
+              <option value="Published">Published</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
         </div>
@@ -569,9 +652,10 @@ export default function PublicationManagement({ user }: { user?: SessionUser }) 
               value={editForm.status}
               onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
             >
-              {['Draft', 'Under Review', 'Published', 'Rejected'].map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <option value="Draft">Draft</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Published">Published</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
         </div>

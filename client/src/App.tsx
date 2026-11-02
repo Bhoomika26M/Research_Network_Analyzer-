@@ -225,7 +225,7 @@ function AppInner() {
     if (activePage === 'dashboard' && role === 'reviewer' && reviewPubId !== null) {
       return (
         <TaskReview
-          pubId={reviewPubId}
+          reviewId={reviewPubId}
           onBack={() => setReviewPubId(null)}
         />
       )

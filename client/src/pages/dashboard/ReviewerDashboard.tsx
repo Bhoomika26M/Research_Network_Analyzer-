@@ -1,76 +1,13 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
+import { useReviews } from '../../services/reviews'
 
 interface ReviewerDashboardProps {
-  onOpenReview: (pubId: number) => void
+  onOpenReview: (reviewId: number) => void
 }
-
-const stats = [
-  { label: 'Assigned Reviews', value: '14', delta: 'Total assignments', icon: '📋', bg: 'bg-blue-50' },
-  { label: 'Pending', value: '6', delta: 'Awaiting action', icon: '⏳', bg: 'bg-amber-50' },
-  { label: 'Completed', value: '7', delta: 'This quarter', icon: '✅', bg: 'bg-emerald-50' },
-  { label: 'Overdue', value: '1', delta: 'Requires attention', icon: '🔴', bg: 'bg-red-50' },
-]
-
-const reviews = [
-  {
-    id: 1,
-    title: 'Transformer Models for Scientific Graph Embeddings',
-    author: 'Zhang, L. et al.',
-    institution: 'Tsinghua University',
-    submitted: 'Nov 25, 2024',
-    deadline: 'Dec 10, 2024',
-    status: 'Pending',
-  },
-  {
-    id: 2,
-    title: 'Privacy Challenges in Cross-Silo Federated Learning',
-    author: 'Torres, E., Nakamura, R.',
-    institution: 'Oxford University',
-    submitted: 'Nov 22, 2024',
-    deadline: 'Dec 7, 2024',
-    status: 'In Progress',
-  },
-  {
-    id: 3,
-    title: 'Distributed Machine Learning at Petascale',
-    author: 'Okafor, J., Williams, S.',
-    institution: 'Cambridge University',
-    submitted: 'Nov 18, 2024',
-    deadline: 'Dec 3, 2024',
-    status: 'Overdue',
-  },
-  {
-    id: 4,
-    title: 'Advances in Quantum Error Correction via Neural Decoders',
-    author: 'IBM Research Team',
-    institution: 'IBM Research',
-    submitted: 'Nov 15, 2024',
-    deadline: 'Nov 30, 2024',
-    status: 'Completed',
-  },
-  {
-    id: 5,
-    title: 'Large Language Models for Biochemical Property Prediction',
-    author: 'Sharma, P., Mehta, V.',
-    institution: 'IIT Bombay',
-    submitted: 'Nov 12, 2024',
-    deadline: 'Nov 27, 2024',
-    status: 'Completed',
-  },
-  {
-    id: 6,
-    title: 'Climate Model Calibration Using Ensemble Neural Networks',
-    author: 'Tanaka, Y. et al.',
-    institution: 'University of Tokyo',
-    submitted: 'Nov 28, 2024',
-    deadline: 'Dec 14, 2024',
-    status: 'Pending',
-  },
-]
 
 const statusStyles: Record<string, string> = {
   Pending: 'bg-amber-50 text-amber-700',
@@ -79,14 +16,12 @@ const statusStyles: Record<string, string> = {
   Completed: 'bg-emerald-50 text-emerald-700',
 }
 
-const reviewsByMonthData = [
-  { month: 'Jan', Completed: 2, Pending: 1 },
-  { month: 'Feb', Completed: 3, Pending: 2 },
-  { month: 'Mar', Completed: 1, Pending: 3 },
-  { month: 'Apr', Completed: 4, Pending: 2 },
-  { month: 'May', Completed: 2, Pending: 1 },
-  { month: 'Jun', Completed: 3, Pending: 2 },
-]
+const dotColors: Record<string, string> = {
+  Pending: 'bg-amber-500',
+  'In Progress': 'bg-blue-500',
+  Overdue: 'bg-red-500',
+  Completed: 'bg-emerald-500',
+}
 
 const customTooltipStyle = {
   backgroundColor: 'white',
@@ -97,7 +32,60 @@ const customTooltipStyle = {
 
 export default function ReviewerDashboard({ onOpenReview }: ReviewerDashboardProps) {
   const [statusFilter, setStatusFilter] = useState('all')
-  const filteredReviews = statusFilter === 'all' ? reviews : reviews.filter(r => r.status === statusFilter)
+  const { data: reviews = [], isLoading } = useReviews()
+
+  const filteredReviews = statusFilter === 'all'
+    ? reviews
+    : reviews.filter(r => r.status === statusFilter)
+
+  const stats = useMemo(() => [
+    {
+      label: 'Assigned Reviews',
+      value: reviews.length,
+      delta: 'Total assignments',
+      icon: '📋',
+      bg: 'bg-blue-50',
+    },
+    {
+      label: 'Pending',
+      value: reviews.filter(r => r.status === 'Pending').length,
+      delta: 'Awaiting action',
+      icon: '⏳',
+      bg: 'bg-amber-50',
+    },
+    {
+      label: 'Completed',
+      value: reviews.filter(r => r.status === 'Completed').length,
+      delta: 'This quarter',
+      icon: '✅',
+      bg: 'bg-emerald-50',
+    },
+    {
+      label: 'Overdue',
+      value: reviews.filter(r => r.status === 'Overdue').length,
+      delta: 'Requires attention',
+      icon: '🔴',
+      bg: 'bg-red-50',
+    },
+  ], [reviews])
+
+  // Build chart data dynamically from reviews (group by month of deadline)
+  const chartData = useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const map: Record<string, { Completed: number; Pending: number }> = {}
+    reviews.forEach(r => {
+      const date = r.submitted_date || ''
+      const parts = date.split(' ')
+      const month = parts[0] || ''
+      if (!map[month]) map[month] = { Completed: 0, Pending: 0 }
+      if (r.status === 'Completed') map[month].Completed += 1
+      else map[month].Pending += 1
+    })
+    // Return sorted by month order
+    return Object.entries(map)
+      .sort(([a], [b]) => months.indexOf(a) - months.indexOf(b))
+      .map(([month, counts]) => ({ month, ...counts }))
+  }, [reviews])
 
   return (
     <div className="p-8 max-w-[1200px]">
@@ -149,67 +137,76 @@ export default function ReviewerDashboard({ onOpenReview }: ReviewerDashboardPro
           </div>
         </div>
 
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-[#F1F5F9]">
-              {['Publication Title', 'Author / Institution', 'Submitted', 'Deadline', 'Status', ''].map(col => (
-                <th key={col} className="text-left px-5 py-3 text-xs font-medium text-[#64748B] font-mono uppercase tracking-wide">{col}</th>
+        {isLoading ? (
+          <div className="py-16 text-center">
+            <div className="w-6 h-6 rounded-full border-2 border-[#E2E8F0] border-t-[#0052FF] animate-spin mx-auto mb-3" />
+            <p className="text-sm text-[#64748B]">Loading reviews…</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#F1F5F9]">
+                {['Publication Title', 'Author / Institution', 'Submitted', 'Deadline', 'Status', ''].map(col => (
+                  <th key={col} className="text-left px-5 py-3 text-xs font-medium text-[#64748B] font-mono uppercase tracking-wide">{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredReviews.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center">
+                    <p className="text-sm font-medium text-[#64748B]">No reviews found for "{statusFilter}"</p>
+                    <p className="text-xs text-[#94A3B8] mt-1">Try selecting a different status</p>
+                  </td>
+                </tr>
+              )}
+              {filteredReviews.map((r) => (
+                <tr key={r.id} className={`border-b border-[#F1F5F9] last:border-0 transition-colors hover:bg-[#FAFAFA] ${r.status === 'Overdue' ? 'bg-red-50/30' : ''}`}>
+                  <td className="px-5 py-4 max-w-[280px]">
+                    <p className="text-sm font-medium text-[#0F172A] leading-snug">{r.pub_title}</p>
+                    {r.pub_venue && (
+                      <p className="text-xs text-[#64748B] mt-0.5">{r.pub_venue}</p>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    <p className="text-sm text-[#0F172A]">{r.pub_author}</p>
+                    <p className="text-xs text-[#64748B]">{r.pub_institution}</p>
+                  </td>
+                  <td className="px-5 py-4 text-sm text-[#64748B] whitespace-nowrap">{r.submitted_date ?? '—'}</td>
+                  <td className="px-5 py-4">
+                    <span className={`text-sm whitespace-nowrap ${r.status === 'Overdue' ? 'text-red-600 font-medium' : 'text-[#64748B]'}`}>
+                      {r.deadline ?? '—'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusStyles[r.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${dotColors[r.status] ?? 'bg-gray-400'}`}></span>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {r.status !== 'Completed' && (
+                      <button
+                        onClick={() => onOpenReview(r.id)}
+                        className="px-3 py-1.5 rounded-xl gradient-bg text-white text-xs font-semibold hover:brightness-110 hover:shadow-sm transition-all whitespace-nowrap"
+                      >
+                        Open Review
+                      </button>
+                    )}
+                    {r.status === 'Completed' && (
+                      <button
+                        onClick={() => onOpenReview(r.id)}
+                        className="px-3 py-1.5 rounded-xl border border-[#E2E8F0] text-xs font-medium text-[#64748B] hover:bg-[#F1F5F9] transition-colors whitespace-nowrap"
+                      >
+                        View Result
+                      </button>
+                    )}
+                  </td>
+                </tr>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredReviews.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-5 py-12 text-center">
-                  <p className="text-sm font-medium text-[#64748B]">No reviews found for "{statusFilter}"</p>
-                  <p className="text-xs text-[#94A3B8] mt-1">Try selecting a different status</p>
-                </td>
-              </tr>
-            )}
-            {filteredReviews.map((r) => (
-              <tr key={r.id} className={`border-b border-[#F1F5F9] last:border-0 transition-colors hover:bg-[#FAFAFA] ${r.status === 'Overdue' ? 'bg-red-50/30' : ''}`}>
-                <td className="px-5 py-4 max-w-[280px]">
-                  <p className="text-sm font-medium text-[#0F172A] leading-snug">{r.title}</p>
-                </td>
-                <td className="px-5 py-4">
-                  <p className="text-sm text-[#0F172A]">{r.author}</p>
-                  <p className="text-xs text-[#64748B]">{r.institution}</p>
-                </td>
-                <td className="px-5 py-4 text-sm text-[#64748B] whitespace-nowrap">{r.submitted}</td>
-                <td className="px-5 py-4">
-                  <span className={`text-sm whitespace-nowrap ${r.status === 'Overdue' ? 'text-red-600 font-medium' : 'text-[#64748B]'}`}>
-                    {r.deadline}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusStyles[r.status]}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      r.status === 'Pending' ? 'bg-amber-500' :
-                      r.status === 'In Progress' ? 'bg-blue-500' :
-                      r.status === 'Overdue' ? 'bg-red-500' : 'bg-emerald-500'
-                    }`}></span>
-                    {r.status}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  {r.status !== 'Completed' && (
-                    <button
-                      onClick={() => onOpenReview(r.id)}
-                      className="px-3 py-1.5 rounded-xl gradient-bg text-white text-xs font-semibold hover:brightness-110 hover:shadow-sm transition-all whitespace-nowrap"
-                    >
-                      Open Review
-                    </button>
-                  )}
-                  {r.status === 'Completed' && (
-                    <button className="px-3 py-1.5 rounded-xl border border-[#E2E8F0] text-xs font-medium text-[#64748B] hover:bg-[#F1F5F9] transition-colors whitespace-nowrap">
-                      View Result
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Reviews by Month chart */}
@@ -221,17 +218,23 @@ export default function ReviewerDashboard({ onOpenReview }: ReviewerDashboardPro
           </span>
           <h2 className="font-display text-lg text-[#0F172A]">Reviews by Month</h2>
         </div>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={reviewsByMonthData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9"/>
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false}/>
-            <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false}/>
-            <Tooltip contentStyle={customTooltipStyle}/>
-            <Legend iconSize={8} wrapperStyle={{ fontSize: '11px' }}/>
-            <Bar dataKey="Completed" fill="#10B981" radius={[4, 4, 0, 0]}/>
-            <Bar dataKey="Pending" fill="#F59E0B" radius={[4, 4, 0, 0]}/>
-          </BarChart>
-        </ResponsiveContainer>
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9"/>
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={customTooltipStyle}/>
+              <Legend iconSize={8} wrapperStyle={{ fontSize: '11px' }}/>
+              <Bar dataKey="Completed" fill="#10B981" radius={[4, 4, 0, 0]}/>
+              <Bar dataKey="Pending" fill="#F59E0B" radius={[4, 4, 0, 0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[200px] flex items-center justify-center">
+            <p className="text-sm text-[#94A3B8]">No review data available for chart</p>
+          </div>
+        )}
       </div>
     </div>
   )

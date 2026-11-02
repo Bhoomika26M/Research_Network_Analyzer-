@@ -19,6 +19,8 @@ const today = new Date().toISOString().split('T')[0]
 export default function ReportsExport() {
   const { showToast } = useToast()
   const [selected, setSelected] = useState('publication')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // Live data from PostgreSQL (cached by react-query)
   const { data: publications = [] } = usePublications()
@@ -63,40 +65,60 @@ export default function ReportsExport() {
     }
   })()
 
-  // Build dataset based on selection
   const getRows = () => {
+    // Derive year filter from start/end date if specified
+    const startYear = startDate ? new Date(startDate).getFullYear() : null
+    const endYear = endDate ? new Date(endDate).getFullYear() : null
+
+    const yearFilter = (year: number | null | undefined) => {
+      if (!year) return true
+      if (startYear && year < startYear) return false
+      if (endYear && year > endYear) return false
+      return true
+    }
+
     if (selected === 'publication') {
-      return publications.map(p => ({
-        Title: p.title,
-        'First Author': p.authors[0] ?? '',
-        Year: p.year,
-        Type: p.type,
-        Status: p.status,
-        Citations: p.citations,
-        DOI: p.doi ?? '—',
-      }))
+      return publications
+        .filter(p => yearFilter(p.year))
+        .map(p => ({
+          Title: p.title,
+          'First Author': p.authors[0] ?? '',
+          Year: p.year,
+          Type: p.type,
+          Status: p.status,
+          Citations: p.citations,
+          DOI: p.doi ?? '—',
+        }))
     }
     if (selected === 'citation') {
       return citations.map(c => {
         const src = publications.find(p => p.id === c.sourcePubId)
         const tgt = publications.find(p => p.id === c.targetPubId)
+        const citYear = typeof c.year === 'number' ? c.year : null
+        if (!yearFilter(citYear ?? undefined)) return null
         return {
           'Source Title': src?.title ?? `Pub #${c.sourcePubId}`,
           'Target Title': tgt?.title ?? `Pub #${c.targetPubId}`,
           Year: c.year,
           Context: c.context.slice(0, 80),
         }
-      })
+      }).filter(Boolean) as Record<string, unknown>[]
     }
     if (selected === 'collaboration') {
-      return projects.map(proj => ({
-        'Project Title': proj.title,
-        PI: proj.pi,
-        Status: proj.status,
-        Members: proj.members.length,
-        Tags: proj.tags.join(', '),
-        'Start Date': proj.startDate,
-      }))
+      return projects
+        .filter(proj => {
+          if (!proj.startDate) return true
+          const yr = new Date(proj.startDate).getFullYear()
+          return yearFilter(yr)
+        })
+        .map(proj => ({
+          'Project Title': proj.title,
+          PI: proj.pi,
+          Status: proj.status,
+          Members: proj.members.length,
+          Tags: proj.tags.join(', '),
+          'Start Date': proj.startDate,
+        }))
     }
     // activity
     return researchers.map(r => ({
@@ -269,21 +291,35 @@ export default function ReportsExport() {
 
           {/* Date range */}
           <div className="mt-6 pt-6 border-t border-[#F1F5F9]">
-            <p className="text-xs font-medium text-[#64748B] mb-3 font-mono uppercase tracking-wide">Date Range Filter (Optional)</p>
+            <p className="text-xs font-medium text-[#64748B] mb-3 font-mono uppercase tracking-wide">Date Range Filter</p>
             <div className="flex items-center gap-3">
               <input
                 type="date"
-                onChange={() => showToast('Date filtering coming soon', 'info')}
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
                 className="px-4 py-2 bg-[#FAFAFA] border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] focus:outline-none focus:border-[#0052FF] transition-colors"
               />
               <span className="text-xs text-[#64748B]">to</span>
-              {/* intentional placeholder — date filtering not yet wired */}
               <input
                 type="date"
-                onChange={() => showToast('Date filtering coming soon', 'info')}
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
                 className="px-4 py-2 bg-[#FAFAFA] border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] focus:outline-none focus:border-[#0052FF] transition-colors"
               />
+              {(startDate || endDate) && (
+                <button
+                  onClick={() => { setStartDate(''); setEndDate('') }}
+                  className="px-3 py-2 text-xs text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] rounded-xl transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
+            {(startDate || endDate) && (
+              <p className="text-xs text-[#0052FF] mt-2">
+                Showing {rows.length} records filtered by selected date range
+              </p>
+            )}
           </div>
         </div>
       </div>

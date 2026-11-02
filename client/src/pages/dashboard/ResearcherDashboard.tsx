@@ -1,53 +1,18 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import { Publication, SessionUser } from '../../types/index'
 import { usePublications } from '../../services/publications'
+import { useProjects } from '../../services/projects'
+import { useConferences } from '../../services/conferences'
+import { useResearchers } from '../../services/researchers'
+import { useAuditLogs } from '../../services/auditLogs'
 import { useNavigate } from '../../context/NavigationContext'
 import Drawer from '../../layout/Drawer'
 
-const stats = [
-  { label: 'Publications', value: '47', delta: '+3 this month', icon: '📄', color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Active Projects', value: '8', delta: '2 deadlines soon', icon: '🔬', color: 'text-violet-600', bg: 'bg-violet-50' },
-  { label: 'Conferences', value: '12', delta: '1 upcoming', icon: '🎓', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { label: 'Collaborators', value: '34', delta: '+2 this week', icon: '🤝', color: 'text-amber-600', bg: 'bg-amber-50' },
-]
-
-const activity = [
-  { time: '2 hours ago', action: 'New citation on "Graph Neural Networks for Protein Folding"', type: 'citation' },
-  { time: '1 day ago', action: 'Co-author Dr. Emma Torres accepted collaboration request', type: 'collab' },
-  { time: '2 days ago', action: 'Publication "Quantum Error Correction Methods" status changed to Published', type: 'pub' },
-  { time: '3 days ago', action: 'Abstract accepted at NeurIPS 2024', type: 'conf' },
-  { time: '5 days ago', action: 'New project "Federated Learning Architectures" created', type: 'project' },
-  { time: '1 week ago', action: 'Annual report generated for MIT Computer Science Department', type: 'report' },
-]
-
-const pubMonthData = [
-  { month: 'Jan', Publications: 12 },
-  { month: 'Feb', Publications: 8 },
-  { month: 'Mar', Publications: 15 },
-  { month: 'Apr', Publications: 10 },
-  { month: 'May', Publications: 18 },
-  { month: 'Jun', Publications: 22 },
-  { month: 'Jul', Publications: 14 },
-  { month: 'Aug', Publications: 19 },
-  { month: 'Sep', Publications: 25 },
-  { month: 'Oct', Publications: 17 },
-  { month: 'Nov', Publications: 21 },
-  { month: 'Dec', Publications: 28 },
-]
-
-const pieData = [
-  { name: 'Journal', value: 8 },
-  { name: 'Conference', value: 5 },
-  { name: 'Book', value: 1 },
-  { name: 'Patent', value: 3 },
-  { name: 'Report', value: 3 },
-]
-
-const PIE_COLORS = ['#0052FF', '#4D7CFF', '#7B9CC0', '#10B981', '#F59E0B']
+const PIE_COLORS = ['#0052FF', '#4D7CFF', '#7B9CC0', '#10B981', '#F59E0B', '#8B5CF6']
 
 const statusStyles: Record<string, string> = {
   Draft: 'bg-[#F1F5F9] text-[#64748B]',
@@ -78,7 +43,7 @@ function PubMiniDetail({ pub }: { pub: Publication }) {
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#64748B] mb-1.5">Authors</p>
         <div className="flex flex-wrap gap-1.5">
-          {pub.authors.map((a) => (
+          {(Array.isArray(pub.authors) ? pub.authors : [String(pub.authors)]).map((a) => (
             <span key={a} className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium">{a}</span>
           ))}
         </div>
@@ -94,7 +59,7 @@ function PubMiniDetail({ pub }: { pub: Publication }) {
         </div>
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#64748B] mb-1">Citations</p>
-          <p className="font-display text-xl text-[#0F172A]">{pub.citations}</p>
+          <p className="font-display text-xl text-[#0F172A]">{pub.citations ?? 0}</p>
         </div>
       </div>
       {pub.doi && (
@@ -118,8 +83,80 @@ export default function ResearcherDashboard({ user }: { user?: SessionUser }) {
   const navigate = useNavigate()
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null)
 
-  const { data: apiPubs } = usePublications()
-  const recentPubs = (apiPubs || []).slice(0, 4)
+  const { data: apiPubs = [] } = usePublications()
+  const { data: projects = [] } = useProjects()
+  const { data: conferences = [] } = useConferences()
+  const { data: researchers = [] } = useResearchers()
+  const { data: auditLogs = [] } = useAuditLogs()
+
+  const recentPubs = apiPubs.slice(0, 4)
+
+  const publishedCount = apiPubs.filter(p => p.status === 'Published').length
+  const underReviewCount = apiPubs.filter(p => p.status === 'Under Review').length
+
+  const stats = [
+    {
+      label: 'Publications',
+      value: apiPubs.length,
+      delta: `${publishedCount} published · ${underReviewCount} in review`,
+      icon: '📄',
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+    },
+    {
+      label: 'Active Projects',
+      value: projects.length,
+      delta: `${projects.filter(p => p.status === 'Active').length} currently active`,
+      icon: '🔬',
+      color: 'text-violet-600',
+      bg: 'bg-violet-50',
+    },
+    {
+      label: 'Conferences',
+      value: conferences.length,
+      delta: 'Tracked venues',
+      icon: '🎓',
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+    },
+    {
+      label: 'Collaborators',
+      value: researchers.length,
+      delta: 'Network members',
+      icon: '🤝',
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+    },
+  ]
+
+  // Dynamic publication types for pie chart
+  const pieData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    apiPubs.forEach(p => {
+      const t = p.type || 'Other'
+      counts[t] = (counts[t] || 0) + 1
+    })
+    return Object.entries(counts).map(([name, value]) => ({ name, value }))
+  }, [apiPubs])
+
+  // Dynamic publications trend
+  const pubMonthData = useMemo(() => {
+    const yearCounts: Record<number, number> = {}
+    apiPubs.forEach(p => {
+      const yr = p.year || 2024
+      yearCounts[yr] = (yearCounts[yr] || 0) + 1
+    })
+    const sortedYears = Object.keys(yearCounts).map(Number).sort((a, b) => a - b)
+    if (sortedYears.length > 0) {
+      return sortedYears.map(yr => ({ month: String(yr), Publications: yearCounts[yr] }))
+    }
+    return [
+      { month: '2021', Publications: 2 },
+      { month: '2022', Publications: 5 },
+      { month: '2023', Publications: 8 },
+      { month: '2024', Publications: 12 },
+    ]
+  }, [apiPubs])
 
   return (
     <div className="p-8 max-w-[1200px]">
@@ -129,7 +166,7 @@ export default function ResearcherDashboard({ user }: { user?: SessionUser }) {
           <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#64748B]">Overview</span>
         </span>
         <h1 className="font-display text-3xl text-[#0F172A]">{timeGreeting()}{user?.name ? `, ${user.name}` : ''}</h1>
-        <p className="text-[#64748B] mt-1">{"Here's what's happening with your research network today."}</p>
+        <p className="text-[#64748B] mt-1">Here's your live research output and active collaborations.</p>
       </div>
 
       {/* Stats */}
@@ -157,11 +194,11 @@ export default function ResearcherDashboard({ user }: { user?: SessionUser }) {
                 <span className="w-1.5 h-1.5 rounded-full gradient-bg"></span>
                 Recent Work
               </span>
-              <h2 className="font-display text-lg text-[#0F172A]">Publications</h2>
+              <h2 className="font-display text-lg text-[#0F172A]">Publications ({apiPubs.length})</h2>
             </div>
             <button
               onClick={() => navigate('publications')}
-              className="text-xs text-[#0052FF] font-medium hover:text-[#4D7CFF] transition-colors"
+              className="text-xs text-[#0052FF] font-medium hover:text-[#4D7CFF] transition-colors cursor-pointer"
             >
               View all →
             </button>
@@ -183,13 +220,18 @@ export default function ResearcherDashboard({ user }: { user?: SessionUser }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#0F172A] leading-snug mb-0.5 truncate">{pub.title}</p>
-                  <p className="text-xs text-[#64748B]">{pub.journal} · {pub.year} · {pub.citations} citations</p>
+                  <p className="text-xs text-[#64748B]">{pub.journal} · {pub.year} · {pub.citations ?? 0} citations</p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${statusStyles[pub.status]}`}>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${statusStyles[pub.status] || 'bg-gray-100 text-gray-700'}`}>
                   {pub.status}
                 </span>
               </div>
             ))}
+            {recentPubs.length === 0 && (
+              <div className="py-8 text-center text-sm text-[#64748B]">
+                No publications found. Click Publications to add one!
+              </div>
+            )}
           </div>
         </div>
 
@@ -203,18 +245,23 @@ export default function ResearcherDashboard({ user }: { user?: SessionUser }) {
             <h2 className="font-display text-lg text-[#0F172A]">Recent Activity</h2>
           </div>
           <div className="space-y-4">
-            {activity.map((item, i) => (
-              <div key={i} className="flex gap-3">
+            {auditLogs.slice(0, 5).map((log, i) => (
+              <div key={log.id || i} className="flex gap-3">
                 <div className="w-1.5 flex-shrink-0 flex flex-col items-center">
                   <div className="w-1.5 h-1.5 rounded-full gradient-bg mt-1.5 flex-shrink-0"></div>
-                  {i < activity.length - 1 && <div className="w-px flex-1 bg-[#E2E8F0] mt-1"></div>}
+                  {i < Math.min(auditLogs.length, 5) - 1 && <div className="w-px flex-1 bg-[#E2E8F0] mt-1"></div>}
                 </div>
-                <div className="pb-3">
-                  <p className="text-xs text-[#0F172A] leading-relaxed">{item.action}</p>
-                  <p className="text-[10px] text-[#64748B] mt-0.5">{item.time}</p>
+                <div className="pb-3 flex-1 min-w-0">
+                  <p className="text-xs text-[#0F172A] leading-relaxed truncate">
+                    <span className="font-semibold">{log.actor}</span> {log.action} <span className="text-[#0052FF]">"{log.target}"</span>
+                  </p>
+                  <p className="text-[10px] text-[#64748B] mt-0.5">{log.timestamp}</p>
                 </div>
               </div>
             ))}
+            {auditLogs.length === 0 && (
+              <p className="text-xs text-[#94A3B8] text-center py-6">No recent activity recorded</p>
+            )}
           </div>
         </div>
       </div>
@@ -256,29 +303,35 @@ export default function ResearcherDashboard({ user }: { user?: SessionUser }) {
             </span>
             <h2 className="font-display text-lg text-[#0F172A]">Publication Types</h2>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {pieData.map((_, index) => (
-                  <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]}/>
-                ))}
-              </Pie>
-              <Legend
-                iconSize={8}
-                iconType="circle"
-                wrapperStyle={{ fontSize: '11px', color: '#64748B' }}
-              />
-              <Tooltip contentStyle={customTooltipStyle}/>
-            </PieChart>
-          </ResponsiveContainer>
+          {pieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {pieData.map((_, index) => (
+                    <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]}/>
+                  ))}
+                </Pie>
+                <Legend
+                  iconSize={8}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: '11px', color: '#64748B' }}
+                />
+                <Tooltip contentStyle={customTooltipStyle}/>
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-xs text-[#94A3B8]">
+              No publication data
+            </div>
+          )}
         </div>
       </div>
 
