@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import FormModal, { inputCls } from '../../components/Modals/FormModal'
 import { useToast } from '../../context/ToastContext'
 import { hasPermission } from '../../permissions/config'
@@ -110,6 +110,23 @@ export default function UserManagement({ user: currentUser }: { user?: SessionUs
   const users: User[] = apiUsers
     .filter(u => !deletedUserIds.includes(u.id))
     .map(u => localOverrides[u.id] || u)
+
+  // Enrich institutions dynamically with real members from database
+  const enrichedInstitutions = useMemo(() => {
+    return institutions.map(inst => {
+      const liveCount = users.filter(u =>
+        u.institution && (
+          u.institution.toLowerCase().includes(inst.short.toLowerCase()) ||
+          inst.name.toLowerCase().includes(u.institution.toLowerCase()) ||
+          u.institution.toLowerCase().includes(inst.name.toLowerCase())
+        )
+      ).length
+      return {
+        ...inst,
+        users: liveCount > 0 ? liveCount : inst.users,
+      }
+    })
+  }, [institutions, users])
 
   // Filters
   const [search, setSearch] = useState('')
@@ -426,7 +443,7 @@ export default function UserManagement({ user: currentUser }: { user?: SessionUs
                 </tr>
               </thead>
               <tbody>
-                {institutions.map(inst => {
+                {enrichedInstitutions.map(inst => {
                   const isActive = managingInst?.id === inst.id
                   return (
                     <tr key={inst.id} className={`border-b border-[#F1F5F9] last:border-0 hover:bg-[#FAFAFA] transition-colors ${isActive ? 'bg-blue-50/30' : ''}`}>

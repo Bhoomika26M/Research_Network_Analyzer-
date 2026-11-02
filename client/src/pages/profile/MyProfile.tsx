@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useToast } from '../../context/ToastContext'
-import { researchersApi } from '../../services/researchers'
+import { researchersApi, useResearchers } from '../../services/researchers'
+import { usePublications } from '../../services/publications'
+import { useProjects } from '../../services/projects'
+import { useConferences } from '../../services/conferences'
 import type { SessionUser } from '../../types/index'
 
 interface MyProfileProps {
@@ -39,15 +42,19 @@ const roleData: Record<string, { email: string; institution: string; department:
   },
 }
 
-const stats = [
-  { label: 'Publications', value: '47' },
-  { label: 'Projects', value: '8' },
-  { label: 'Conferences', value: '12' },
-  { label: 'Collaborators', value: '34' },
-]
-
 export default function MyProfile({ role, user, onUserUpdated }: MyProfileProps) {
   const { showToast } = useToast()
+  const { data: publications = [] } = usePublications()
+  const { data: projects = [] } = useProjects()
+  const { data: conferences = [] } = useConferences()
+  const { data: researchers = [] } = useResearchers()
+
+  const liveStats = [
+    { label: 'Publications', value: publications.length },
+    { label: 'Projects', value: projects.length },
+    { label: 'Conferences', value: conferences.length },
+    { label: 'Collaborators', value: researchers.length },
+  ]
   const defaultData = roleData[role] ?? roleData.researcher
   const [activeTab, setActiveTab] = useState<'academic' | 'activity'>('academic')
 
@@ -251,7 +258,7 @@ export default function MyProfile({ role, user, onUserUpdated }: MyProfileProps)
           {activeTab === 'activity' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                {stats.map(s => (
+                {liveStats.map(s => (
                   <div key={s.label} className="bg-white rounded-2xl border border-[#E2E8F0] p-5 hover:shadow-md transition-all duration-200">
                     <p className="font-display text-3xl text-[#0F172A]">{s.value}</p>
                     <p className="text-sm font-medium text-[#0F172A] mt-0.5">{s.label}</p>

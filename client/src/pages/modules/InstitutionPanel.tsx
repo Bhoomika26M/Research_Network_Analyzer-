@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import FormModal from '../../components/Modals/FormModal'
 import { useToast } from '../../context/ToastContext'
 import { hasPermission } from '../../permissions/config'
-import { useCreateResearcher } from '../../services/researchers'
+import { useResearchers, useCreateResearcher } from '../../services/researchers'
 import type { SessionUser } from '../../types/index'
 
 type Institution = {
@@ -98,7 +98,26 @@ const inputCls = 'w-full px-4 py-2.5 bg-[#FAFAFA] border border-[#E2E8F0] rounde
 export default function InstitutionPanel({ user }: { user?: SessionUser }) {
   const { showToast } = useToast()
   const createResearcherMutation = useCreateResearcher()
+  const { data: apiResearchers = [] } = useResearchers()
   const [institutions, setInstitutions] = useState(initialInstitutions)
+
+  // Enrich institutions dynamically with real members count from PostgreSQL
+  const enrichedInstitutions = useMemo(() => {
+    return institutions.map(inst => {
+      const liveMembers = apiResearchers.filter(r =>
+        r.institution && (
+          r.institution.toLowerCase().includes(inst.short.toLowerCase()) ||
+          inst.name.toLowerCase().includes(r.institution.toLowerCase()) ||
+          r.institution.toLowerCase().includes(inst.name.toLowerCase())
+        )
+      )
+      return {
+        ...inst,
+        members: liveMembers.length > 0 ? liveMembers.length : inst.members,
+      }
+    })
+  }, [institutions, apiResearchers])
+
   const [selected, setSelected] = useState<Institution | null>(initialInstitutions[0])
   const [drawerOpen, setDrawerOpen] = useState(true)
   const [editMode, setEditMode] = useState(false)
@@ -118,7 +137,7 @@ export default function InstitutionPanel({ user }: { user?: SessionUser }) {
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  const filtered = institutions.filter(inst =>
+  const filtered = enrichedInstitutions.filter(inst =>
     statusFilter === 'all' || inst.status === statusFilter
   )
 
@@ -208,6 +227,26 @@ export default function InstitutionPanel({ user }: { user?: SessionUser }) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Dynamic Institutional Stats */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Active Institutions', value: enrichedInstitutions.filter(i => i.status === 'Active').length, icon: '🏛️', bg: 'bg-blue-50' },
+          { label: 'Total Affiliated Members', value: apiResearchers.length, icon: '👥', bg: 'bg-violet-50' },
+          { label: 'Academic Departments', value: enrichedInstitutions.reduce((acc, i) => acc + i.departments, 0), icon: '📚', bg: 'bg-emerald-50' },
+          { label: 'Partner Countries', value: new Set(enrichedInstitutions.map(i => i.country).filter(c => c && c !== '—')).size, icon: '🌐', bg: 'bg-amber-50' },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white rounded-2xl border border-[#E2E8F0] p-4 flex items-center gap-3.5 shadow-sm">
+            <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center text-lg flex-shrink-0`}>
+              {stat.icon}
+            </div>
+            <div>
+              <p className="font-display text-2xl text-[#0F172A] leading-tight">{stat.value}</p>
+              <p className="text-xs text-[#64748B] mt-0.5">{stat.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="flex gap-6">
