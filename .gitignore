@@ -11,6 +11,9 @@ vite.config.*.timestamp-*
 *-debug.log*
 logs/
 *.log
+.claude-replay.*
+.tmp-*
+
 # Python
 __pycache__/
 *.py[cod]

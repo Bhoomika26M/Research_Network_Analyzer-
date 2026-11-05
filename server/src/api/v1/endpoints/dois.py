@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from src.api.deps import require_permission
+from src.api.deps import require_permission, require_any_permission
 from src.core.audit import record_audit
 from src.db.session import get_db
 from src.models.publication import Publication
@@ -30,7 +30,7 @@ class DOIMintResponse(BaseModel):
 async def mint_doi(
     request: DOIMintRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("dois.mint")),
+    current_user: User = Depends(require_any_permission("dois.mint", "publications.approve", "publications.create")),
 ) -> Any:
     result = await db.execute(select(Publication).where(Publication.id == request.publication_id))
     pub = result.scalars().first()

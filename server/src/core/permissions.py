@@ -45,11 +45,28 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 
+def _normalize_role(role: str) -> str:
+    r = (role or "").strip().lower()
+    if "admin" in r and "inst" not in r:
+        return "admin"
+    if "inst" in r:
+        return "institution"
+    if "review" in r:
+        return "reviewer"
+    if "research" in r:
+        return "researcher"
+    return r
+
+
 def has_permission(role: str, permission: str) -> bool:
     """True if the given role holds the permission."""
-    return permission in ROLE_PERMISSIONS.get(role, set())
+    if permission in ROLE_PERMISSIONS.get(role, set()):
+        return True
+    return permission in ROLE_PERMISSIONS.get(_normalize_role(role), set())
 
 
 def get_role_permissions(role: str) -> list[str]:
     """All permissions held by a role, sorted for a stable response."""
-    return sorted(ROLE_PERMISSIONS.get(role, set()))
+    perms = ROLE_PERMISSIONS.get(role) or ROLE_PERMISSIONS.get(_normalize_role(role), set())
+    return sorted(perms)
+

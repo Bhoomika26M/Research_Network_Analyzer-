@@ -7,6 +7,7 @@ from src.models.project import Project
 from src.models.conference import Conference
 from src.models.citation import Citation
 from src.models.audit import AuditLog
+from src.models.review import Review
 from src.core.security import get_password_hash
 from src.core.config import settings
 
@@ -726,6 +727,105 @@ INITIAL_AUDIT_LOGS = [
     },
 ]
 
+INITIAL_REVIEWS = [
+    {
+        "pub_id": 4,
+        "pub_title": "Large-Scale Graph Partitioning for Distributed Scientific Computing",
+        "pub_author": "Chen, S., Okafor, J., Reyes, S.",
+        "pub_institution": "MIT / Cambridge / UC Berkeley",
+        "pub_abstract": "We present a distributed graph partitioning algorithm that achieves near-optimal edge cuts at the scale of trillion-edge graphs. Our implementation on the Frontier supercomputer demonstrates 87% parallel efficiency at 10,000 nodes.",
+        "pub_keywords": "Graph Partitioning,Distributed Computing,Supercomputing,Parallel Algorithms",
+        "pub_venue": "SC24 — Supercomputing 2024",
+        "pub_type": "Conference",
+        "submitted_date": "Nov 25, 2024",
+        "deadline": "Dec 10, 2024",
+        "status": "Pending",
+        "reviewer_name": "Prof. James Okafor",
+    },
+    {
+        "pub_id": 12,
+        "pub_title": "Extreme Weather Prediction via Hybrid Physics-ML Models",
+        "pub_author": "Tanaka, Y.",
+        "pub_institution": "University of Tokyo",
+        "pub_abstract": "This study integrates physical constraints into a machine learning model for predicting extreme weather events 7-14 days ahead.",
+        "pub_keywords": "Climate ML,Physics-Informed,Weather Prediction,Ensemble Methods",
+        "pub_venue": "Nature Climate Change",
+        "pub_type": "Journal",
+        "submitted_date": "Nov 22, 2024",
+        "deadline": "Dec 7, 2024",
+        "status": "In Progress",
+        "reviewer_name": "Prof. James Okafor",
+    },
+    {
+        "pub_id": 6,
+        "pub_title": "Deep Learning for Molecular Property Prediction Using Graph Transformers",
+        "pub_author": "Chen, S., Novak, M., Khan, A.",
+        "pub_institution": "MIT / EPFL / ETH Zürich",
+        "pub_abstract": "We introduce MolGT, a graph transformer architecture for molecular property prediction that integrates 3D geometric features with topological graph structure.",
+        "pub_keywords": "Graph Transformers,Molecular Modelling,Property Prediction,Cheminformatics",
+        "pub_venue": "Journal of Chemical Information and Modeling",
+        "pub_type": "Journal",
+        "submitted_date": "Nov 18, 2024",
+        "deadline": "Dec 3, 2024",
+        "status": "Overdue",
+        "reviewer_name": "Prof. James Okafor",
+    },
+    {
+        "pub_id": 3,
+        "pub_title": "Quantum Error Correction via Machine Learning Decoders",
+        "pub_author": "Chen, S., Patel, R., Kovacs, L.",
+        "pub_institution": "MIT / Stanford / TU Munich",
+        "pub_abstract": "This paper introduces a neural network-based decoder for the surface code that outperforms minimum-weight perfect matching in the presence of realistic noise models.",
+        "pub_keywords": "Quantum Error Correction,Neural Decoders,Surface Code,GNN",
+        "pub_venue": "Physical Review X",
+        "pub_type": "Journal",
+        "submitted_date": "Nov 15, 2024",
+        "deadline": "Nov 30, 2024",
+        "status": "Completed",
+        "decision": "Approved",
+        "overall_score": 9,
+        "method_score": 4,
+        "novelty_score": 5,
+        "clarity_score": 4,
+        "comments": "Excellent work on quantum error correction. The GNN decoder is a significant contribution. Minor: please add ablation studies for different noise levels.",
+        "reviewer_name": "Prof. James Okafor",
+    },
+    {
+        "pub_id": 14,
+        "pub_title": "Large Language Models for Biochemical Property Prediction",
+        "pub_author": "Sharma, P., Torres, E.",
+        "pub_institution": "IIT Bombay / University of Oxford",
+        "pub_abstract": "We fine-tune large language models pre-trained on chemical text to predict ADMET properties of drug-like molecules.",
+        "pub_keywords": "LLMs,Biochemistry,Drug Discovery,ADMET Prediction",
+        "pub_venue": "Journal of Medicinal Chemistry",
+        "pub_type": "Journal",
+        "submitted_date": "Nov 12, 2024",
+        "deadline": "Nov 27, 2024",
+        "status": "Completed",
+        "decision": "Revisions Required",
+        "overall_score": 6,
+        "method_score": 3,
+        "novelty_score": 3,
+        "clarity_score": 3,
+        "comments": "Interesting application of LLMs to biochemistry but requires stronger baseline comparisons and statistical significance testing.",
+        "reviewer_name": "Prof. James Okafor",
+    },
+    {
+        "pub_id": 11,
+        "pub_title": "Climate Model Calibration Using Ensemble Neural Networks",
+        "pub_author": "Tanaka, Y., Okafor, J.",
+        "pub_institution": "University of Tokyo / Cambridge",
+        "pub_abstract": "We develop an ensemble of neural networks to calibrate climate model outputs, reducing systematic biases in temperature and precipitation projections.",
+        "pub_keywords": "Climate Modelling,Neural Networks,Ensemble Methods,CMIP6",
+        "pub_venue": "Geophysical Research Letters",
+        "pub_type": "Journal",
+        "submitted_date": "Nov 28, 2024",
+        "deadline": "Dec 14, 2024",
+        "status": "Pending",
+        "reviewer_name": "Prof. James Okafor",
+    },
+]
+
 
 async def init_db(db: AsyncSession) -> None:
     # Seed Users
@@ -777,6 +877,14 @@ async def init_db(db: AsyncSession) -> None:
         logger.info("Seeding Audit Logs...")
         for al in INITIAL_AUDIT_LOGS:
             db.add(AuditLog(**al))
+        await db.flush()
+
+    # Seed Reviews
+    res = await db.execute(select(Review))
+    if not res.scalars().first():
+        logger.info("Seeding Reviews...")
+        for rv in INITIAL_REVIEWS:
+            db.add(Review(**rv))
 
     await db.commit()
     logger.info("Database seeding complete.")

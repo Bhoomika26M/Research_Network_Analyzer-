@@ -35,4 +35,20 @@ export const authApi = {
     const res = await apiClient.get<User>('/auth/me')
     return res.data
   },
+  updateProfile: async (data: { name?: string; email?: string; institution?: string; department?: string; bio?: string }): Promise<User> => {
+    const res = await apiClient.put<User>('/auth/me', data)
+    return res.data
+  },
+  changePassword: async (passwords: { current_password: string; new_password: string }): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient.post<{ success: boolean; message: string }>('/auth/change-password', passwords)
+    return res.data
+  },
+  deactivateAccount: async (): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient.post<{ success: boolean; message: string }>('/auth/deactivate')
+    return res.data
+  },
+  deleteAccount: async (): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient.delete<{ success: boolean; message: string }>('/auth/me')
+    return res.data
+  },
 }

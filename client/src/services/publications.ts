@@ -38,6 +38,8 @@ export function useCreatePublication() {
     mutationFn: (pubData: Omit<Publication, 'id'>) => publicationsApi.createPublication(pubData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['publications'] })
+      queryClient.invalidateQueries({ queryKey: ['reviews'] })
+      queryClient.invalidateQueries({ queryKey: ['auditLogs'] })
     },
   })
 }
@@ -49,6 +51,8 @@ export function useUpdatePublication() {
       publicationsApi.updatePublication(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['publications'] })
+      queryClient.invalidateQueries({ queryKey: ['reviews'] })
+      queryClient.invalidateQueries({ queryKey: ['auditLogs'] })
     },
   })
 }
@@ -59,6 +63,8 @@ export function useDeletePublication() {
     mutationFn: (id: number) => publicationsApi.deletePublication(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['publications'] })
+      queryClient.invalidateQueries({ queryKey: ['reviews'] })
+      queryClient.invalidateQueries({ queryKey: ['auditLogs'] })
     },
   })
 }

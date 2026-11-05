@@ -12,6 +12,7 @@ export interface Researcher {
   publications: number[]
   h_index: number
   citations_total: number
+  is_active?: string
 }
 
 export interface Publication {
@@ -87,6 +88,7 @@ export interface SessionUser {
   interests?: string[]
   h_index?: number
   citations_total?: number
+  is_active?: string
   /** Permissions granted to the account's role, as returned by the backend. */
   permissions?: string[]
 }

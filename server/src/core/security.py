@@ -10,13 +10,15 @@ def create_access_token(
     role: str = "researcher",
     expires_delta: Optional[timedelta] = None
 ) -> str:
+    now = datetime.utcnow()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode = {
         "exp": expire,
+        "iat": int(now.timestamp()),
         "sub": str(subject),
         "role": role,
     }
